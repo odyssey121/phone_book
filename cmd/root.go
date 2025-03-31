@@ -4,6 +4,9 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -12,13 +15,8 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "phone_book_json",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "phone book",
+	Long:  ``,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -34,6 +32,19 @@ func Execute() {
 }
 
 func init() {
+	if _, err := os.Stat("db/phones.json"); err != nil && errors.Is(err, os.ErrNotExist) {
+		fd, err := os.Create("db/phones.json")
+		if err != nil {
+			fmt.Printf("init/create errror => %s", err)
+			return
+		}
+		defer fd.Close()
+
+		temp := make([]any, 0)
+		encoded, _ := json.Marshal(temp)
+		fd.Write(encoded)
+
+	} 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
