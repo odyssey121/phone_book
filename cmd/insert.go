@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"phone_book_json/lib"
+	"phone_book_json/store"
 
 	"github.com/spf13/cobra"
 )
@@ -13,26 +14,30 @@ import (
 // insertCmd represents the insert command
 var insertCmd = &cobra.Command{
 	Use:   "insert",
-	Short: "",
-	Long: ``,
+	Short: "execute insert <first_name> <last_name> <phone_number>",
+	Long:  ``,
 
 	Args: cobra.ExactArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		db := getDB()
+		db := store.GetDB()
 		n, err := lib.FormatNumber(args[2])
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
 
-		if p := db.search(n); p != nil {
+		if p := db.Search(n); p != nil {
 			fmt.Printf("\nPerson with number: %v already exsist!\n", n)
+			return
 		}
 
-		insertErr := db.insert(args[0], args[1], n)
+		insertErr := db.Insert(args[0], args[1], n)
 
 		if insertErr != nil {
-			fmt.Println("insertErr:", insertErr)
+			fmt.Println(insertErr)
+			return
 		}
+		fmt.Println("Inserted!")
 	},
 }
 

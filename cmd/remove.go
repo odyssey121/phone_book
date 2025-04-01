@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"phone_book_json/lib"
+	"phone_book_json/store"
 
 	"github.com/spf13/cobra"
 )
@@ -13,20 +14,23 @@ import (
 // removeCmd represents the remove command
 var removeCmd = &cobra.Command{
 	Use:   "remove",
-	Short: "",
-	Long: ``,
-	Args: cobra.ExactArgs(1),
+	Short: "execute remove <phone_number_for_remove>",
+	Long:  ``,
+	Args:  cobra.ExactArgs(1),
 
 	Run: func(cmd *cobra.Command, args []string) {
-		db := getDB()
+		db := store.GetDB()
 		number, err := lib.FormatNumber(args[0])
 		if err != nil {
 			fmt.Println(err)
+			return
 		}
-		removeErr := db.remove(number)
+		removeErr := db.Remove(number)
 		if removeErr != nil {
-			fmt.Println("removeErr:", removeErr)
+			fmt.Println(removeErr)
+			return
 		}
+		fmt.Println("Record removed!")
 	},
 }
 

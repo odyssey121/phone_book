@@ -6,6 +6,7 @@ package cmd
 import (
 	"fmt"
 	"phone_book_json/lib"
+	"phone_book_json/store"
 	"reflect"
 
 	"github.com/spf13/cobra"
@@ -14,7 +15,7 @@ import (
 // searchCmd represents the search command
 var searchCmd = &cobra.Command{
 	Use:   "search",
-	Short: "",
+	Short: "execute search <phone_number_for_search>",
 	Long:  ``,
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -23,21 +24,23 @@ var searchCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-		db := getDB()
+		db := store.GetDB()
 
 		var result any
 
 		if cmd.Flags().Lookup("startWith").Changed {
-			list := db.searchStartWith(n)
+			list := db.SearchStartWith(n)
 			if len(list) != 0 {
 				result = list
 			}
 		} else {
-			result = db.search(n)
+			result = db.Search(n)
 		}
 
 		if result != nil && !reflect.ValueOf(result).IsNil() {
-			fmt.Println(result)
+			res, _ := lib.PrettyPrintJSONstream(result)
+			fmt.Println(res)
+
 		}
 	},
 }

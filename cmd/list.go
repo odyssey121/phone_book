@@ -6,22 +6,26 @@ package cmd
 import (
 	"fmt"
 
+	"phone_book_json/lib"
+	"phone_book_json/store"
+
 	"github.com/spf13/cobra"
 )
 
 // listCmd represents the list command
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "",
+	Short: "list records in store",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		db := getDB()
-		records, err := db.list()
+		db := store.GetDB()
+		records, err := db.List()
 		if err != nil {
 			fmt.Println("list records err => ", err)
 
 		}
-		fmt.Println(records)
+		res, _ := lib.PrettyPrintJSONstream(records)
+		fmt.Println(res)
 	},
 }
 

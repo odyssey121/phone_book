@@ -4,9 +4,6 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -32,19 +29,7 @@ func Execute() {
 }
 
 func init() {
-	if _, err := os.Stat("db/phones.json"); err != nil && errors.Is(err, os.ErrNotExist) {
-		fd, err := os.Create("db/phones.json")
-		if err != nil {
-			fmt.Printf("init/create errror => %s", err)
-			return
-		}
-		defer fd.Close()
 
-		temp := make([]any, 0)
-		encoded, _ := json.Marshal(temp)
-		fd.Write(encoded)
-
-	} 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
