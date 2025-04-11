@@ -5,8 +5,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"phone_book_json/lib"
-	"phone_book_json/store"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -19,18 +22,30 @@ var removeCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 
 	Run: func(cmd *cobra.Command, args []string) {
-		db := store.GetDB()
-		number, err := lib.FormatNumber(args[0])
+		n, err := lib.FormatNumber(args[0])
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		removeErr := db.Remove(number)
-		if removeErr != nil {
-			fmt.Println(removeErr)
+		c := http.Client{
+			Timeout: 15 * time.Second,
+		}
+		request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:1234/remove/%d", n), nil)
+		if err != nil {
+			fmt.Println("Get remove err:", err)
 			return
 		}
-		fmt.Println("Record removed!")
+
+		httpData, err := c.Do(request)
+		if err != nil {
+			fmt.Println("Do() remove err:", err)
+			return
+		}
+		_, err = io.Copy(os.Stdout, httpData.Body)
+		fmt.Println("")
+		if err != nil {
+			fmt.Println("io.Copy remove err:", err)
+		}
 	},
 }
 

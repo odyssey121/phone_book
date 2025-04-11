@@ -28,6 +28,7 @@ func FormatNumber(num string) (int, error) {
 // Serialize serializes a slice with JSON records
 func Serialize(slice interface{}, w io.Writer) error {
 	e := json.NewEncoder(w)
+	e.SetIndent("", "\t")
 	return e.Encode(slice)
 }
 

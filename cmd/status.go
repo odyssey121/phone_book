@@ -13,44 +13,44 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// listCmd represents the list command
-var listCmd = &cobra.Command{
-	Use:   "list",
-	Short: "list records in store",
+// statusCmd represents the status command
+var statusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "A brief description of your command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		c := http.Client{
 			Timeout: 15 * time.Second,
 		}
-		request, err := http.NewRequest(http.MethodGet, "http://localhost:1234/list", nil)
+		request, err := http.NewRequest(http.MethodGet, "http://localhost:1234/status", nil)
 		if err != nil {
-			fmt.Println("Get list err:", err)
+			fmt.Println("Get insert err:", err)
 			return
 		}
 
 		httpData, err := c.Do(request)
 		if err != nil {
-			fmt.Println("Do() list err:", err)
+			fmt.Println("Do() insert err:", err)
 			return
 		}
 		_, err = io.Copy(os.Stdout, httpData.Body)
 		fmt.Println("")
 		if err != nil {
-			fmt.Println("io.Copy list err:", err)
+			fmt.Println("io.Copy insert err:", err)
 		}
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(statusCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// listCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// statusCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// statusCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

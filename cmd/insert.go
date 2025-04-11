@@ -5,8 +5,11 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"phone_book_json/lib"
-	"phone_book_json/store"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -19,25 +22,31 @@ var insertCmd = &cobra.Command{
 
 	Args: cobra.ExactArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		db := store.GetDB()
 		n, err := lib.FormatNumber(args[2])
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-
-		if p := db.Search(n); p != nil {
-			fmt.Printf("\nPerson with number: %v already exsist!\n", n)
+		c := http.Client{
+			Timeout: 15 * time.Second,
+		}
+		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1234/insert/%s/%s/%d", args[0], args[1], n), nil)
+		if err != nil {
+			fmt.Println("Get insert err:", err)
 			return
 		}
 
-		insertErr := db.Insert(args[0], args[1], n)
-
-		if insertErr != nil {
-			fmt.Println(insertErr)
+		httpData, err := c.Do(request)
+		if err != nil {
+			fmt.Println("Do() insert err:", err)
 			return
 		}
-		fmt.Println("Inserted!")
+		_, err = io.Copy(os.Stdout, httpData.Body)
+		fmt.Println("")
+		if err != nil {
+			fmt.Println("io.Copy insert err:", err)
+		}
+
 	},
 }
 

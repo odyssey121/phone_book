@@ -58,6 +58,10 @@ func (db *DB) updateIndexes(listRecords []Person) error {
 	return lib.WriteSerializeJSONFile("store/indexes.json", newIndexes)
 }
 
+func (db *DB) CountRecords() int {
+	return len(db.indexes)
+}
+
 func initPersonEntry(name, last_name string, number int) *Person {
 	if name == "" || last_name == "" {
 		return nil
@@ -87,6 +91,7 @@ func (db *DB) Search(number int) *Person {
 	if !ok {
 		return nil
 	}
+
 	listRecords, _ := db.List()
 	return &listRecords[db.indexes[number]]
 
@@ -100,14 +105,16 @@ func (db *DB) Remove(phone int) error {
 	}
 
 	listRecords = append(listRecords[:i], listRecords[i+1:]...)
-
-	err := lib.WriteSerializeJSONFile(db.path, listRecords)
-
+	err := db.updateIndexes(listRecords)
 	if err != nil {
 		return err
 	}
 
-	db.updateIndexes(listRecords)
+	err = lib.WriteSerializeJSONFile(db.path, listRecords)
+
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -121,6 +128,12 @@ func (db *DB) Insert(first_name string, last_name string, phone int) error {
 	defer f.Close()
 
 	listRecords, _ := db.List()
+
+	_, ok := db.indexes[phone]
+	if ok {
+		return fmt.Errorf("Person with number: %d already exsist!", phone)
+	}
+
 	listRecords = append(listRecords, *temp)
 
 	encodedListRecords, err := json.MarshalIndent(listRecords, "", "    ")
@@ -132,7 +145,10 @@ func (db *DB) Insert(first_name string, last_name string, phone int) error {
 		return err
 	}
 
-	db.updateIndexes(listRecords)
+	err = db.updateIndexes(listRecords)
+	if err != nil {
+		return err
+	}
 
 	return nil
 
@@ -143,6 +159,7 @@ func (db *DB) List() ([]Person, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	defer f.Close()
 	// b, err := io.ReadAll(f)
 	// if err != nil {
@@ -155,6 +172,8 @@ func (db *DB) List() ([]Person, error) {
 	if errDecode != nil {
 		return nil, errDecode
 	}
+
+	db.updateIndexes(outputSlice)
 
 	return outputSlice, nil
 

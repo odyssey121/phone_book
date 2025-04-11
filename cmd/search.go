@@ -5,9 +5,13 @@ package cmd
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"phone_book_json/lib"
-	"phone_book_json/store"
 	"reflect"
+	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -24,17 +28,39 @@ var searchCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-		db := store.GetDB()
 
 		var result any
 
+		var paramStr string
+		paramSlice := make([]string, 0)
+
 		if cmd.Flags().Lookup("startWith").Changed {
-			list := db.SearchStartWith(n)
-			if len(list) != 0 {
-				result = list
-			}
-		} else {
-			result = db.Search(n)
+			paramSlice = append(paramSlice, "?start_with=1")
+		}
+
+		c := http.Client{
+			Timeout: 15 * time.Second,
+		}
+
+		if len(paramSlice) > 0 {
+			paramStr = strings.Join(paramSlice, "&")
+		}
+
+		request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1234/search/%d%s", n, paramStr), nil)
+		if err != nil {
+			fmt.Println("Get remove err:", err)
+			return
+		}
+
+		httpData, err := c.Do(request)
+		if err != nil {
+			fmt.Println("Do() remove err:", err)
+			return
+		}
+		_, err = io.Copy(os.Stdout, httpData.Body)
+		fmt.Println("")
+		if err != nil {
+			fmt.Println("io.Copy remove err:", err)
 		}
 
 		if result != nil && !reflect.ValueOf(result).IsNil() {
