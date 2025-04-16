@@ -5,10 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"phone_book_json/lib"
 	"regexp"
 	"strconv"
 	"time"
+
+	"github.com/phone_book/lib"
 )
 
 type Person struct {

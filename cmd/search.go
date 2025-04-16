@@ -8,10 +8,11 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"phone_book_json/lib"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/phone_book/lib"
 
 	"github.com/spf13/cobra"
 )

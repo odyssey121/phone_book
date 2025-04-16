@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"phone_book_json/lib"
+	"github.com/phone_book/lib"
 	"time"
 
 	"github.com/spf13/cobra"

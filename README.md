@@ -1,4 +1,4 @@
-# phone_book_json
+# phone_book
 phone book / store json format / golang
 ### Этот пакет предоставляет возможности телефонного справочника в формате json
 
