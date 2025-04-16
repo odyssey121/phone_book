@@ -1,4 +1,4 @@
-module phone_book_json
+module github.com/phone_book
 
 go 1.24.1
 
