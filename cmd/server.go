@@ -8,12 +8,13 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"github.com/phone_book/lib"
-	"github.com/phone_book/store"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/gorilla/mux"
+	"github.com/phone_book/lib"
+	"github.com/phone_book/store"
 	"github.com/spf13/cobra"
 )
 
@@ -32,8 +33,8 @@ func listHandler(db store.DB) HandlerFunc {
 
 		data, err := db.List()
 		if err != nil {
-			log.Println("listHandler Error: ", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			log.Println("listHandler DB Error: ", err)
+			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 
 		}
@@ -54,25 +55,31 @@ func statusHandler(db store.DB) HandlerFunc {
 
 func insertHandler(db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+
 		log.Println("Serving:", r.URL.Path, "from", r.Host)
-		urlSplited := strings.Split(r.URL.Path, "/")
-		if len(urlSplited) < 5 {
-			w.WriteHeader(http.StatusNotFound)
-			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusNotFound)
-			return
-		}
-		n, err := lib.FormatNumber(urlSplited[4])
+
+		insertEntity := store.Person{}
+		err := lib.DeSerialize(&insertEntity, r.Body)
+
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 			return
 		}
 
-		err = db.Insert(urlSplited[2], urlSplited[3], n)
+		if p := db.Search(insertEntity.Phone); p != nil {
+			http.Error(w, fmt.Sprintf("Person with number: %d exsist!", insertEntity.Phone), http.StatusBadRequest)
+			return
+
+		}
+
+		err = db.Insert(insertEntity.FirstName, insertEntity.LastName, insertEntity.Phone)
 
 		if err != nil {
-			http.Error(w, fmt.Sprint(err), http.StatusOK)
+			log.Println(err)
+			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 		}
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprint(w, "New record added successfully")
 	}
@@ -129,17 +136,28 @@ func removeHandler(db store.DB) HandlerFunc {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 			return
 		}
-		log.Println("N:", n)
-		err = db.Remove(n)
-		if err != nil {
+
+		if p := db.Search(n); p == nil {
 			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "%s", err)
+			fmt.Fprintf(w, "Person with number %d not found", n)
+			return
+		}
+
+		err = db.Remove(n)
+
+		if err != nil {
+			log.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, "Server Error", err)
 			return
 		}
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Records with number %d deleted", n)
 	}
 }
+
+// Create a new ServeMux using Gorilla
+var gMux = mux.NewRouter()
 
 // serverCmd represents the server command
 var serverCmd = &cobra.Command{
@@ -148,22 +166,31 @@ var serverCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		PORT := ":" + cmd.Flag("port").Value.String()
-		mux := http.DefaultServeMux
 		s := http.Server{
 			Addr:         PORT,
-			Handler:      mux,
+			Handler:      gMux,
 			IdleTimeout:  5 * time.Second,
 			ReadTimeout:  time.Second,
 			WriteTimeout: time.Second,
 		}
 
 		db := store.GetDB()
-		mux.Handle("/", http.HandlerFunc(defaultHeandler))
-		mux.Handle("GET /list", http.HandlerFunc(listHandler(db)))
-		mux.Handle("GET /status", http.HandlerFunc(statusHandler(db)))
-		mux.Handle("POST /insert/", http.HandlerFunc(insertHandler(db)))
-		mux.Handle("GET /search/", http.HandlerFunc(searchHandler(db)))
-		mux.Handle("DELETE /remove/", http.HandlerFunc(removeHandler(db)))
+
+		getMux := gMux.Methods(http.MethodGet).Subrouter()
+
+		getMux.HandleFunc("/", defaultHeandler)
+		getMux.HandleFunc("/list", listHandler(db))
+		getMux.HandleFunc("/status", statusHandler(db))
+		getMux.HandleFunc("/search/{number}", searchHandler(db))
+
+		postMux := gMux.Methods(http.MethodPost).Subrouter()
+
+		postMux.HandleFunc("/insert", insertHandler(db))
+
+		deleteMux := gMux.Methods(http.MethodDelete).Subrouter()
+
+		deleteMux.HandleFunc("/remove/{number}", removeHandler(db))
+
 		fmt.Println("Ready to serve at", PORT)
 		err := s.ListenAndServe()
 		if err != nil {

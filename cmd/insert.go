@@ -4,12 +4,15 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"github.com/phone_book/lib"
 	"time"
+
+	"github.com/phone_book/lib"
+	"github.com/phone_book/store"
 
 	"github.com/spf13/cobra"
 )
@@ -30,7 +33,14 @@ var insertCmd = &cobra.Command{
 		c := http.Client{
 			Timeout: 15 * time.Second,
 		}
-		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://localhost:1234/insert/%s/%s/%d", args[0], args[1], n), nil)
+
+		payoadEntity := store.Person{FirstName: args[0], LastName: args[1], Phone: n, LastAccess: "0"}
+
+		buf := new(bytes.Buffer)
+
+		lib.Serialize(payoadEntity, buf)
+
+		request, err := http.NewRequest(http.MethodPost, "http://localhost:1234/insert", buf)
 		if err != nil {
 			fmt.Println("Get insert err:", err)
 			return

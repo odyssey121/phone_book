@@ -24,19 +24,19 @@ var statusCmd = &cobra.Command{
 		}
 		request, err := http.NewRequest(http.MethodGet, "http://localhost:1234/status", nil)
 		if err != nil {
-			fmt.Println("Get insert err:", err)
+			fmt.Println("Get status err:", err)
 			return
 		}
 
 		httpData, err := c.Do(request)
 		if err != nil {
-			fmt.Println("Do() insert err:", err)
+			fmt.Println("Do() status err:", err)
 			return
 		}
 		_, err = io.Copy(os.Stdout, httpData.Body)
 		fmt.Println("")
 		if err != nil {
-			fmt.Println("io.Copy insert err:", err)
+			fmt.Println("io.Copy status err:", err)
 		}
 	},
 }
