@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -88,16 +87,17 @@ func insertHandler(db store.DB) HandlerFunc {
 func searchHandler(db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Serving:", r.URL.Path, "from", r.Host)
+		vars := mux.Vars(r)
 		parsedUrl, _ := url.Parse(r.URL.String())
 		params, _ := url.ParseQuery(parsedUrl.RawQuery)
+		phone, ok := vars["number"]
 
-		urlSplited := strings.Split(parsedUrl.Path, "/")
-		if len(urlSplited) < 3 {
+		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusNotFound)
 			return
 		}
-		n, err := lib.FormatNumber(urlSplited[2])
+		n, err := lib.FormatNumber(phone)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 			return
@@ -125,13 +125,14 @@ func searchHandler(db store.DB) HandlerFunc {
 func removeHandler(db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Println("Serving:", r.URL.Path, "from", r.Host)
-		urlSplited := strings.Split(r.URL.Path, "/")
-		if len(urlSplited) < 3 {
+		vars := mux.Vars(r)
+		phone, ok := vars["number"]
+		if !ok {
 			w.WriteHeader(http.StatusNotFound)
 			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusNotFound)
 			return
 		}
-		n, err := lib.FormatNumber(urlSplited[2])
+		n, err := lib.FormatNumber(phone)
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 			return
