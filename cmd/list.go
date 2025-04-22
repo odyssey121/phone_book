@@ -19,10 +19,11 @@ var listCmd = &cobra.Command{
 	Short: "list records in store",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
+		// init client
 		c := http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: cfg.HTTPServer.Timeout * time.Second,
 		}
-		request, err := http.NewRequest(http.MethodGet, "http://localhost:1234/list", nil)
+		request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/list", cfg.HTTPServer.Address), nil)
 		if err != nil {
 			fmt.Println("Get list err:", err)
 			return

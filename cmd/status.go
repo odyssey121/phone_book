@@ -20,9 +20,9 @@ var statusCmd = &cobra.Command{
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
 		c := http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: cfg.HTTPServer.Timeout * time.Second,
 		}
-		request, err := http.NewRequest(http.MethodGet, "http://localhost:1234/status", nil)
+		request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/status", cfg.HTTPServer.Address), nil)
 		if err != nil {
 			fmt.Println("Get status err:", err)
 			return

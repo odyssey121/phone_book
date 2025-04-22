@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/phone_book/lib"
+	"github.com/phone_book/internal/lib"
 
 	"github.com/spf13/cobra"
 )
@@ -40,14 +40,14 @@ var searchCmd = &cobra.Command{
 		}
 
 		c := http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: cfg.HTTPServer.Timeout * time.Second,
 		}
 
 		if len(paramSlice) > 0 {
 			paramStr = strings.Join(paramSlice, "&")
 		}
 
-		request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://localhost:1234/search/%d%s", n, paramStr), nil)
+		request, err := http.NewRequest(http.MethodGet, fmt.Sprintf("http://%s/search/%d%s", cfg.HTTPServer.Address, n, paramStr), nil)
 		if err != nil {
 			fmt.Println("Get remove err:", err)
 			return

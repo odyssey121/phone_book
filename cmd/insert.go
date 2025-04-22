@@ -11,8 +11,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/phone_book/lib"
-	"github.com/phone_book/store"
+	"github.com/phone_book/internal/lib"
+	"github.com/phone_book/internal/store"
 
 	"github.com/spf13/cobra"
 )
@@ -30,8 +30,10 @@ var insertCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
+
+		// init client
 		c := http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: cfg.HTTPServer.Timeout * time.Second,
 		}
 
 		payoadEntity := store.Person{FirstName: args[0], LastName: args[1], Phone: n, LastAccess: "0"}
@@ -40,7 +42,7 @@ var insertCmd = &cobra.Command{
 
 		lib.Serialize(payoadEntity, buf)
 
-		request, err := http.NewRequest(http.MethodPost, "http://localhost:1234/insert", buf)
+		request, err := http.NewRequest(http.MethodPost, fmt.Sprintf("http://%s/insert", cfg.HTTPServer.Address), buf)
 		if err != nil {
 			fmt.Println("Get insert err:", err)
 			return

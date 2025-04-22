@@ -11,19 +11,11 @@ import (
 )
 
 type PostgresDb struct {
-	connectionString string
+	ConnectionString string
 }
 
-var (
-	Hostname = "localhost"
-	Port     = 5432
-	Username = "username"
-	Password = "pass"
-	Database = "phone_book"
-)
-
 func (db *PostgresDb) getConnect() *sql.DB {
-	conn, err := sql.Open("postgres", db.connectionString)
+	conn, err := sql.Open("postgres", db.ConnectionString)
 	if err != nil {
 		log.Println(err)
 		return nil
@@ -32,10 +24,7 @@ func (db *PostgresDb) getConnect() *sql.DB {
 	return conn
 }
 
-func (db *PostgresDb) initDb() error {
-	db.connectionString = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
-		Hostname, Port, Username, Password, Database)
-
+func (db *PostgresDb) init() error {
 	conn := db.getConnect()
 	defer conn.Close()
 

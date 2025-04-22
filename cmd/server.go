@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
-	"github.com/phone_book/lib"
-	"github.com/phone_book/store"
+	"github.com/phone_book/internal/config"
+	"github.com/phone_book/internal/lib"
+	"github.com/phone_book/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -166,17 +167,22 @@ var serverCmd = &cobra.Command{
 	Short: "run server for phone book",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		PORT := ":" + cmd.Flag("port").Value.String()
+		// init conf
+		cfg := config.MustLoad()
+		fmt.Println("cfg:", cfg)
+
+		// init db
+		db := store.GetDB(cfg.Storage)
+		// init server
 		s := http.Server{
-			Addr:         PORT,
+			Addr:         cfg.HTTPServer.Address,
 			Handler:      gMux,
-			IdleTimeout:  5 * time.Second,
-			ReadTimeout:  time.Second,
-			WriteTimeout: time.Second,
+			IdleTimeout:  cfg.HTTPServer.IdleTimeout * time.Second,
+			ReadTimeout:  cfg.HTTPServer.Timeout * time.Second,
+			WriteTimeout: cfg.HTTPServer.Timeout * time.Second,
 		}
 
-		db := store.GetDB()
-
+		// init router
 		getMux := gMux.Methods(http.MethodGet).Subrouter()
 
 		getMux.HandleFunc("/", defaultHeandler)
@@ -192,7 +198,7 @@ var serverCmd = &cobra.Command{
 
 		deleteMux.HandleFunc("/remove/{number}", removeHandler(db))
 
-		fmt.Println("Ready to serve at", PORT)
+		fmt.Println("Ready to serve at", cfg.HTTPServer.Address)
 		err := s.ListenAndServe()
 		if err != nil {
 			fmt.Println(err)
@@ -204,15 +210,4 @@ var serverCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(serverCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// serverCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// serverCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	serverCmd.Flags().StringP("port", "p", "1234", "the port on which the server will be launched")
 }

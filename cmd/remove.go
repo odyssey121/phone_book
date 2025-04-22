@@ -8,8 +8,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"github.com/phone_book/lib"
 	"time"
+
+	"github.com/phone_book/internal/config"
+	"github.com/phone_book/internal/lib"
 
 	"github.com/spf13/cobra"
 )
@@ -27,10 +29,13 @@ var removeCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
+		// init conf
+		cfg := config.MustLoad()
+		// init client
 		c := http.Client{
-			Timeout: 15 * time.Second,
+			Timeout: cfg.HTTPServer.Timeout * time.Second,
 		}
-		request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://localhost:1234/remove/%d", n), nil)
+		request, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("http://%s/remove/%d", cfg.HTTPServer.Address, n), nil)
 		if err != nil {
 			fmt.Println("Get remove err:", err)
 			return
