@@ -4,8 +4,9 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -14,6 +15,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/phone_book/internal/config"
 	"github.com/phone_book/internal/lib"
+	"github.com/phone_book/internal/loger"
 	"github.com/phone_book/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -21,19 +23,20 @@ import (
 type HandlerFunc func(w http.ResponseWriter, r *http.Request)
 
 func defaultHeandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("Serving:", r.URL.Path, "from", r.Host)
 	w.WriteHeader(http.StatusOK)
 	Body := "Server running!\n"
 	fmt.Fprintf(w, "%s", Body)
 }
 
-func listHandler(db store.DB) HandlerFunc {
+func listHandler(log *slog.Logger, db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Serving:", r.URL.Path, "from", r.Host)
+		const op = "server.listHandler"
+		log := log.With(slog.String("op", op))
+		log.Info("new request", slog.String("Serving", r.URL.Path), slog.String("from", r.Host))
 
 		data, err := db.List()
 		if err != nil {
-			log.Println("listHandler DB Error: ", err)
+			log.Error(fmt.Sprintf("%s", err))
 			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 
@@ -43,9 +46,11 @@ func listHandler(db store.DB) HandlerFunc {
 	}
 }
 
-func statusHandler(db store.DB) HandlerFunc {
+func statusHandler(log *slog.Logger, db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Serving:", r.URL.Path, "from", r.Host)
+		const op = "server.statusHandler"
+		log := log.With(slog.String("op", op))
+		log.Info("new request", slog.String("Serving", r.URL.Path), slog.String("from", r.Host))
 
 		res := fmt.Sprintf("Total record: %d\n", db.CountRecords())
 		w.WriteHeader(http.StatusOK)
@@ -53,29 +58,28 @@ func statusHandler(db store.DB) HandlerFunc {
 	}
 }
 
-func insertHandler(db store.DB) HandlerFunc {
+func insertHandler(log *slog.Logger, db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
-		log.Println("Serving:", r.URL.Path, "from", r.Host)
+		const op = "server.insertHandler"
+		log := log.With(slog.String("op", op))
+		log.Info("new request", slog.String("Serving", r.URL.Path), slog.String("from", r.Host))
 
 		insertEntity := store.Person{}
 		err := lib.DeSerialize(&insertEntity, r.Body)
 
 		if err != nil {
+			log.Error("de serialize error", loger.ErrLogFmt(err))
 			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
 			return
 		}
 
-		if p := db.Search(insertEntity.Phone); p != nil {
-			http.Error(w, fmt.Sprintf("Person with number: %d exsist!", insertEntity.Phone), http.StatusBadRequest)
-			return
-
-		}
-
 		err = db.Insert(insertEntity.FirstName, insertEntity.LastName, insertEntity.Phone)
 
-		if err != nil {
-			log.Println(err)
+		if errors.Is(err, store.ErrPhoneExist) {
+			http.Error(w, fmt.Sprintf("person with number: %d already exsist", insertEntity.Phone), http.StatusBadRequest)
+			return
+		} else if err != nil {
+			log.Error("db error", loger.ErrLogFmt(err))
 			http.Error(w, "Server Error", http.StatusInternalServerError)
 			return
 		}
@@ -85,17 +89,22 @@ func insertHandler(db store.DB) HandlerFunc {
 	}
 }
 
-func searchHandler(db store.DB) HandlerFunc {
+func searchHandler(log *slog.Logger, db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Serving:", r.URL.Path, "from", r.Host)
-		vars := mux.Vars(r)
+		const op = "server.searchHandler"
+		log := log.With(slog.String("op", op))
+
 		parsedUrl, _ := url.Parse(r.URL.String())
 		params, _ := url.ParseQuery(parsedUrl.RawQuery)
+
+		log.Info("new request", slog.String("Serving", r.URL.Path), slog.Any("params", params), slog.String("from", r.Host))
+
+		vars := mux.Vars(r)
 		phone, ok := vars["number"]
 
 		if !ok {
 			w.WriteHeader(http.StatusNotFound)
-			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusNotFound)
+			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusBadRequest)
 			return
 		}
 		n, err := lib.FormatNumber(phone)
@@ -105,7 +114,7 @@ func searchHandler(db store.DB) HandlerFunc {
 		}
 
 		if pv := params.Get("start_with"); pv == "1" {
-			if ps := db.SearchStartWith(n); !reflect.ValueOf(ps).IsNil() {
+			if ps, _ := db.SearchStartWith(n); !reflect.ValueOf(ps).IsNil() {
 				w.WriteHeader(http.StatusOK)
 				lib.Serialize(ps, w)
 			} else {
@@ -123,9 +132,12 @@ func searchHandler(db store.DB) HandlerFunc {
 	}
 }
 
-func removeHandler(db store.DB) HandlerFunc {
+func removeHandler(log *slog.Logger, db store.DB) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Println("Serving:", r.URL.Path, "from", r.Host)
+		const op = "server.removeHandler"
+		log := log.With(slog.String("op", op))
+		log.Info("new request", slog.String("Serving", r.URL.Path), slog.String("from", r.Host))
+
 		vars := mux.Vars(r)
 		phone, ok := vars["number"]
 		if !ok {
@@ -148,7 +160,7 @@ func removeHandler(db store.DB) HandlerFunc {
 		err = db.Remove(n)
 
 		if err != nil {
-			log.Println(err)
+			log.Error("db error", loger.ErrLogFmt(err))
 			w.WriteHeader(http.StatusInternalServerError)
 			fmt.Fprint(w, "Server Error", err)
 			return
@@ -169,10 +181,15 @@ var serverCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// init conf
 		cfg := config.MustLoad()
-		fmt.Println("cfg:", cfg)
-
+		// init loger
+		log := loger.GetLoger(cfg)
+		log = log.With(slog.String("env", cfg.Env))
+		log.Info("starting loger")
 		// init db
-		db := store.GetDB(cfg.Storage)
+		db, err := store.GetDB(cfg.Storage)
+		if err != nil {
+			log.Error("init db error", loger.ErrLogFmt(err))
+		}
 		// init server
 		s := http.Server{
 			Addr:         cfg.HTTPServer.Address,
@@ -186,22 +203,23 @@ var serverCmd = &cobra.Command{
 		getMux := gMux.Methods(http.MethodGet).Subrouter()
 
 		getMux.HandleFunc("/", defaultHeandler)
-		getMux.HandleFunc("/list", listHandler(db))
-		getMux.HandleFunc("/status", statusHandler(db))
-		getMux.HandleFunc("/search/{number}", searchHandler(db))
+		getMux.HandleFunc("/list", listHandler(log, db))
+		getMux.HandleFunc("/status", statusHandler(log, db))
+		getMux.HandleFunc("/search/{number}", searchHandler(log, db))
 
 		postMux := gMux.Methods(http.MethodPost).Subrouter()
 
-		postMux.HandleFunc("/insert", insertHandler(db))
+		postMux.HandleFunc("/insert", insertHandler(log, db))
 
 		deleteMux := gMux.Methods(http.MethodDelete).Subrouter()
 
-		deleteMux.HandleFunc("/remove/{number}", removeHandler(db))
+		deleteMux.HandleFunc("/remove/{number}", removeHandler(log, db))
 
-		fmt.Println("Ready to serve at", cfg.HTTPServer.Address)
-		err := s.ListenAndServe()
+		log.Info("server started", slog.String("address", cfg.HTTPServer.Address))
+
+		err = s.ListenAndServe()
 		if err != nil {
-			fmt.Println(err)
+			log.Error("http server listen err", loger.ErrLogFmt(err))
 			return
 		}
 

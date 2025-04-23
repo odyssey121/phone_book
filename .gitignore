@@ -24,8 +24,8 @@ go.work.sum
 # env file
 .env
 postgres
-store/indexes.json
-store/store.json
+internal/store/data/indexes.json
+internal/store/data/store/store.json
 
 go.sum
 go.mod

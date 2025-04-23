@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 )
 
@@ -25,6 +26,7 @@ func (db *PostgresDb) getConnect() *sql.DB {
 }
 
 func (db *PostgresDb) init() error {
+	const op = "storage.postgres_db.init"
 	conn := db.getConnect()
 	defer conn.Close()
 
@@ -32,22 +34,22 @@ func (db *PostgresDb) init() error {
 		`CREATE TABLE IF NOT EXISTS Persons (
 			first_name varchar(255) NOT NULL,
 			last_name varchar(255) NOT NULL,
-			phone VARCHAR(22) NOT NULL,
+			phone VARCHAR(22) NOT NULL UNIQUE,
 			last_access integer DEFAULT NULL,
 			PRIMARY KEY (phone)
 		)`)
 	if err != nil {
-		return fmt.Errorf("init db Prepare error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	res, err := stmt.Exec()
 	if err != nil {
-		return fmt.Errorf("init db Exec error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	_, err = res.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("init db RowsAffected error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
 	return nil
@@ -67,18 +69,19 @@ func (db *PostgresDb) CountRecords() int {
 	return count
 }
 
-func (db *PostgresDb) SearchStartWith(number int) []Person {
+func (db *PostgresDb) SearchStartWith(number int) ([]Person, error) {
+	const op = "storage.postgres_db.SearchStartWith"
 	conn := db.getConnect()
 	defer conn.Close()
 	result := []Person{}
 	stmtOut, err := conn.Prepare("SELECT first_name, last_name, phone, last_access FROM Persons WHERE phone LIKE $1")
 	if err != nil {
-		log.Printf("SearchStartWith Prepare db error => %s", err)
+		return result, fmt.Errorf("%s: %w", op, err)
 	}
 
 	rows, err := stmtOut.Query(strconv.Itoa(number) + "%")
 	if err != nil {
-		log.Printf("SearchStartWith Query db error => %s", err)
+		return result, fmt.Errorf("%s: %w", op, err)
 	}
 
 	for rows.Next() {
@@ -86,13 +89,13 @@ func (db *PostgresDb) SearchStartWith(number int) []Person {
 		var phone int
 		err = rows.Scan(&firstName, &lastName, &phone, &lastAccess)
 		if err != nil {
-			log.Printf("SearchStartWith Scan db error => %s", err)
+			return result, fmt.Errorf("%s: %w", op, err)
 		}
 		p := Person{firstName, lastName, phone, lastAccess}
 		result = append(result, p)
 	}
 
-	return result
+	return result, nil
 
 }
 
@@ -101,7 +104,7 @@ func (db *PostgresDb) Search(number int) *Person {
 	defer conn.Close()
 	var firstName, lastName, lastAccess string
 	var phone int
-	row := conn.QueryRow("SELECT first_name, last_name, phone, last_access FROM Persons WHERE phone = $1", number)
+	row := conn.QueryRow("SELECT first_name, last_name, phone, last_access FROM Persons WHERE phone = $1 LIMIT 1", number)
 	row.Scan(&firstName, &lastName, &phone, &lastAccess)
 	if phone == 0 {
 		return nil
@@ -112,44 +115,41 @@ func (db *PostgresDb) Search(number int) *Person {
 }
 
 func (db *PostgresDb) Remove(phone int) error {
+	const op = "storage.postgres_db.Remove"
 	conn := db.getConnect()
 	defer conn.Close()
 	stmt, err := conn.Prepare("DELETE FROM Persons WHERE phone = $1")
 	if err != nil {
-		return fmt.Errorf("Remove Prepare db error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := stmt.Exec(phone)
+	_, err = stmt.Exec(phone)
 
 	if err != nil {
-		return fmt.Errorf("Remove Exec db error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
-
-	affectedN, _ := res.RowsAffected()
-
-	log.Printf("Remove db affected: %d with data[phone: %d]", affectedN, phone)
 
 	return nil
 }
 
 func (db *PostgresDb) Insert(first_name string, last_name string, phone int) error {
+	const op = "storage.postgres_db.Insert"
 	conn := db.getConnect()
 	defer conn.Close()
 
 	stmt, err := conn.Prepare(`INSERT INTO Persons (first_name, last_name, phone, last_access) VALUES ($1, $2, $3, $4)`)
 	if err != nil {
-		return fmt.Errorf("Insert Prepare db error => %s", err)
+		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	res, err := stmt.Exec(first_name, last_name, phone, time.Now().Unix())
+	_, err = stmt.Exec(first_name, last_name, phone, time.Now().Unix())
 
 	if err != nil {
-		return fmt.Errorf("Insert Exec db error => %s", err)
+		if psgErr, ok := err.(*pq.Error); ok && psgErr.Code == "23505" {
+			return fmt.Errorf("%s: %w", op, ErrPhoneExist)
+		}
+		return fmt.Errorf("%s: %w", op, err)
 	}
-
-	affectedN, _ := res.RowsAffected()
-
-	log.Printf("Insert db affected: %d with data[last_name: %s,] [first_name: %s], [phone: %d]", affectedN, last_name, first_name, phone)
 
 	return nil
 
