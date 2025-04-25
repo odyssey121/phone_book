@@ -9,12 +9,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"reflect"
 	"time"
 
+	"github.com/go-chi/render"
 	"github.com/gorilla/mux"
 	"github.com/phone_book/internal/config"
 	"github.com/phone_book/internal/lib"
+	apiResp "github.com/phone_book/internal/lib/api/response"
 	"github.com/phone_book/internal/loger"
 	"github.com/phone_book/internal/store"
 	"github.com/spf13/cobra"
@@ -37,13 +38,17 @@ func listHandler(log *slog.Logger, db store.DB) HandlerFunc {
 		data, err := db.List()
 		if err != nil {
 			log.Error(fmt.Sprintf("%s", err))
-			http.Error(w, "Server Error", http.StatusInternalServerError)
+			render.JSON(w, r, apiResp.Error("internal server error"))
 			return
 
 		}
-		w.WriteHeader(http.StatusOK)
-		lib.Serialize(data, w)
+		render.JSON(w, r, apiResp.WithData(data))
 	}
+}
+
+type StatusResponse struct {
+	apiResp.Response
+	Total int `json:"total"`
 }
 
 func statusHandler(log *slog.Logger, db store.DB) HandlerFunc {
@@ -52,9 +57,9 @@ func statusHandler(log *slog.Logger, db store.DB) HandlerFunc {
 		log := log.With(slog.String("op", op))
 		log.Info("new request", slog.String("Serving", r.URL.Path), slog.String("from", r.Host))
 
-		res := fmt.Sprintf("Total record: %d\n", db.CountRecords())
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, res)
+		total := db.CountRecords()
+		render.JSON(w, r, StatusResponse{apiResp.OK(""), total})
+
 	}
 }
 
@@ -69,23 +74,21 @@ func insertHandler(log *slog.Logger, db store.DB) HandlerFunc {
 
 		if err != nil {
 			log.Error("de serialize error", loger.ErrLogFmt(err))
-			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+			render.JSON(w, r, apiResp.Error("de serialize error"))
 			return
 		}
 
 		err = db.Insert(insertEntity.FirstName, insertEntity.LastName, insertEntity.Phone)
 
 		if errors.Is(err, store.ErrPhoneExist) {
-			http.Error(w, fmt.Sprintf("person with number: %d already exsist", insertEntity.Phone), http.StatusBadRequest)
+			render.JSON(w, r, apiResp.Error(fmt.Sprintf("person with number: %d already exsist", insertEntity.Phone)))
 			return
 		} else if err != nil {
 			log.Error("db error", loger.ErrLogFmt(err))
-			http.Error(w, "Server Error", http.StatusInternalServerError)
+			render.JSON(w, r, apiResp.Error("internal server error"))
 			return
 		}
-
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, "New record added successfully")
+		render.JSON(w, r, apiResp.OK("new record added successfully"))
 	}
 }
 
@@ -103,31 +106,22 @@ func searchHandler(log *slog.Logger, db store.DB) HandlerFunc {
 		phone, ok := vars["number"]
 
 		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusBadRequest)
+			render.JSON(w, r, apiResp.Error("not enough arguments: "+r.URL.Path))
 			return
 		}
 		n, err := lib.FormatNumber(phone)
 		if err != nil {
-			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+			render.JSON(w, r, apiResp.Error(fmt.Sprint(err)))
 			return
 		}
 
 		if pv := params.Get("start_with"); pv == "1" {
-			if ps, _ := db.SearchStartWith(n); !reflect.ValueOf(ps).IsNil() {
-				w.WriteHeader(http.StatusOK)
-				lib.Serialize(ps, w)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
-				fmt.Fprintf(w, "Person with number %d not found", n)
-			}
+			ps, _ := db.SearchStartWith(n)
+			render.JSON(w, r, apiResp.WithData(ps))
 
-		} else if p := db.Search(n); p != nil {
-			w.WriteHeader(http.StatusOK)
-			lib.Serialize(p, w)
 		} else {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "Person with number %d not found", n)
+			p := db.Search(n)
+			render.JSON(w, r, apiResp.WithData(p))
 		}
 	}
 }
@@ -141,19 +135,17 @@ func removeHandler(log *slog.Logger, db store.DB) HandlerFunc {
 		vars := mux.Vars(r)
 		phone, ok := vars["number"]
 		if !ok {
-			w.WriteHeader(http.StatusNotFound)
-			http.Error(w, "Not enough arguments: "+r.URL.Path, http.StatusNotFound)
+			render.JSON(w, r, apiResp.Error("not enough arguments: "+r.URL.Path))
 			return
 		}
 		n, err := lib.FormatNumber(phone)
 		if err != nil {
-			http.Error(w, fmt.Sprint(err), http.StatusBadRequest)
+			render.JSON(w, r, apiResp.Error(fmt.Sprint(err)))
 			return
 		}
 
 		if p := db.Search(n); p == nil {
-			w.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(w, "Person with number %d not found", n)
+			render.JSON(w, r, apiResp.Error(fmt.Sprintf("Person with number %d not found", n)))
 			return
 		}
 
@@ -161,12 +153,11 @@ func removeHandler(log *slog.Logger, db store.DB) HandlerFunc {
 
 		if err != nil {
 			log.Error("db error", loger.ErrLogFmt(err))
-			w.WriteHeader(http.StatusInternalServerError)
-			fmt.Fprint(w, "Server Error", err)
+			render.JSON(w, r, apiResp.Error("internal server error"))
 			return
 		}
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Records with number %d deleted", n)
+		render.JSON(w, r, apiResp.OK(fmt.Sprintf("records with number %d deleted", n)))
+
 	}
 }
 
@@ -205,6 +196,7 @@ var serverCmd = &cobra.Command{
 		getMux.HandleFunc("/", defaultHeandler)
 		getMux.HandleFunc("/list", listHandler(log, db))
 		getMux.HandleFunc("/status", statusHandler(log, db))
+		getMux.HandleFunc("/search", searchHandler(log, db))
 		getMux.HandleFunc("/search/{number}", searchHandler(log, db))
 
 		postMux := gMux.Methods(http.MethodPost).Subrouter()
@@ -212,7 +204,7 @@ var serverCmd = &cobra.Command{
 		postMux.HandleFunc("/insert", insertHandler(log, db))
 
 		deleteMux := gMux.Methods(http.MethodDelete).Subrouter()
-
+		deleteMux.HandleFunc("/remove", removeHandler(log, db))
 		deleteMux.HandleFunc("/remove/{number}", removeHandler(log, db))
 
 		log.Info("server started", slog.String("address", cfg.HTTPServer.Address))

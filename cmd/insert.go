@@ -5,15 +5,15 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/phone_book/internal/lib"
+	api "github.com/phone_book/internal/lib/api/response"
 	"github.com/phone_book/internal/store"
-
 	"github.com/spf13/cobra"
 )
 
@@ -48,16 +48,29 @@ var insertCmd = &cobra.Command{
 			return
 		}
 
-		httpData, err := c.Do(request)
+		resp, err := c.Do(request)
 		if err != nil {
 			fmt.Println("Do() insert err:", err)
 			return
 		}
-		_, err = io.Copy(os.Stdout, httpData.Body)
-		fmt.Println("")
+		defer resp.Body.Close()
+
+		body, _ := io.ReadAll(resp.Body)
+
+		var responseJson api.ResponseData
+
+		err = json.Unmarshal(body, &responseJson)
+
 		if err != nil {
-			fmt.Println("io.Copy insert err:", err)
+			fmt.Println("json.Unmarshal() err:", err)
+			return
 		}
+		if responseJson.Error != "" {
+			fmt.Println("response err:", responseJson.Error)
+			return
+		}
+		output, _ := lib.PrettyPrintJSONstream(responseJson.Message)
+		fmt.Println(output)
 
 	},
 }

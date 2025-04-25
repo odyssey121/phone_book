@@ -4,10 +4,10 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -28,16 +28,27 @@ var statusCmd = &cobra.Command{
 			return
 		}
 
-		httpData, err := c.Do(request)
+		resp, err := c.Do(request)
 		if err != nil {
 			fmt.Println("Do() status err:", err)
 			return
 		}
-		_, err = io.Copy(os.Stdout, httpData.Body)
-		fmt.Println("")
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+
+		var responseJson StatusResponse
+		err = json.Unmarshal(body, &responseJson)
+
 		if err != nil {
-			fmt.Println("io.Copy status err:", err)
+			fmt.Println("json.Unmarshal() err:", err)
+			return
 		}
+		if responseJson.Error != "" {
+			fmt.Println("response err:", responseJson.Error)
+			return
+		}
+
+		fmt.Println("total: ", responseJson.Total)
 	},
 }
 
