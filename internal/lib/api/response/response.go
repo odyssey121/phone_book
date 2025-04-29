@@ -1,9 +1,23 @@
 package response
 
+import "github.com/phone_book/internal/store"
+
 type Response struct {
 	Status  string `json:"status"`
 	Error   string `json:"error,omitempty"`
 	Message string `json:"message,omitempty"`
+}
+
+type ResponseDataPersons struct {
+	Data   []store.Person
+	Error  string
+	Status string
+}
+
+type ResponseDataPerson struct {
+	Data   store.Person
+	Error  string
+	Status string
 }
 
 type ResponseData struct {
@@ -12,8 +26,9 @@ type ResponseData struct {
 }
 
 const (
-	StatusOK    = "OK"
-	StatusError = "Error"
+	StatusOK               = "OK"
+	StatusError            = "Error"
+	InternalServerErrorMsg = "internal server error"
 )
 
 func OK(msg string) Response {

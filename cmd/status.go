@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"time"
 
+	personHandlers "github.com/phone_book/internal/http_server/handlers/person"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +37,7 @@ var statusCmd = &cobra.Command{
 		defer resp.Body.Close()
 		body, _ := io.ReadAll(resp.Body)
 
-		var responseJson StatusResponse
+		var responseJson personHandlers.StatusResponse
 		err = json.Unmarshal(body, &responseJson)
 
 		if err != nil {
