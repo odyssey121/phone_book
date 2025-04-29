@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"regexp"
 	"strconv"
@@ -19,7 +20,7 @@ func matchNumber(num string) bool {
 func FormatNumber(num string) (int, error) {
 	NumFormated := strings.ReplaceAll(num, "-", "")
 	if !matchNumber(NumFormated) {
-		return 0, fmt.Errorf("phone number \"%s\" is incorrect", num)
+		return 0, fmt.Errorf("Phone number %s is incorrect", num)
 	}
 	n, _ := strconv.Atoi(NumFormated)
 	return n, nil
@@ -78,6 +79,10 @@ func WriteSerializeJSONFile(path string, slice interface{}) error {
 
 	return nil
 
+}
+
+func RandRange(min, max int) int {
+	return rand.Intn(max-min) + min
 }
 
 func OpenDeSerializeJSONFile(path string, slice interface{}) error {

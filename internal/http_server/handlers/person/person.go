@@ -142,7 +142,7 @@ func Remove(log *slog.Logger, db store.DB) http.HandlerFunc {
 			render.JSON(w, r, apiResp.Error(apiResp.InternalServerErrorMsg))
 			return
 		}
-		render.JSON(w, r, apiResp.OK(fmt.Sprintf("records with number %d deleted", n)))
+		render.JSON(w, r, apiResp.OK(fmt.Sprintf("Record with number %d deleted", n)))
 
 	}
 }

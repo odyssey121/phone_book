@@ -112,7 +112,7 @@ func (db *JsonDb) Remove(phone int) error {
 
 func (db *JsonDb) Insert(first_name string, last_name string, phone int) error {
 	const op = "storage.json_db.Insert"
-	temp := initPersonEntry(first_name, last_name, phone)
+	temp := InitPersonEntry(first_name, last_name, phone)
 	f, err := os.OpenFile(db.Path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return err

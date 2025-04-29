@@ -42,6 +42,13 @@ func WithData(data interface{}) ResponseData {
 	}
 }
 
+func WithDataList(data []interface{}) ResponseData {
+	return ResponseData{
+		Response{Status: StatusOK},
+		data,
+	}
+}
+
 func Error(msg string) Response {
 	return Response{
 		Status: StatusError,

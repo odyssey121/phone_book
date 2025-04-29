@@ -45,7 +45,7 @@ func TestRemoveHandler(t *testing.T) {
 			name:             "Success",
 			status:           http.StatusOK,
 			respStatus:       apiResp.StatusOK,
-			respMsg:          fmt.Sprintf("records with number %s deleted", reqParam["number"]),
+			respMsg:          fmt.Sprintf("Record with number %s deleted", reqParam["number"]),
 			reqParam:         reqParam,
 			mockSearchResult: &mockSearchResult,
 		},

@@ -20,7 +20,7 @@ type Person struct {
 	LastAccess string `json:"updated_at"`
 }
 
-func initPersonEntry(name, last_name string, number int) *Person {
+func InitPersonEntry(name, last_name string, number int) *Person {
 	// Give LastAccess a value
 	LastAccess := strconv.FormatInt(time.Now().Unix(), 10)
 	return &Person{name, last_name, number, LastAccess}
